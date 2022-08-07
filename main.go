@@ -56,10 +56,12 @@ func main() {
 	// Als een pod niet gekicked mag worden omdat er al teveel te gekicked zijn
 	// ivm minPodsRunning, wat dan? Wachten tot de volgende loop van dit programma?
 
-	config2Pod := make(map[int]map[string]string)
+	config2Pod := make(map[int]map[string]map[string]string)
 	for i := range kickerConfs {
-		config2Pod[i] = make(map[string]string)
+		config2Pod[i] = make(map[string]map[string]string)
+		config2Pod[i][kickerConfs[i].Name] = make(map[string]string)
 	}
+
 	for _, pod := range pods.Items {
 		// var podName string = pod.Name
 		ESXNode := getESXNodeofOCPNode(pod.Spec.NodeName)
@@ -75,23 +77,40 @@ func main() {
 
 			// create a list of pods
 			if eq {
-				config2Pod[i][pod.Name] = ESXNode
+				config2Pod[i][kickerConfs[i].Name][pod.Name] = ESXNode
 			}
 		}
 	}
-	var countPodsonNodes int
-	for i, confmap := range config2Pod {
-		maxPodESXNode, _ := strconv.Atoi(kickerConfs[i].MaxpodsESXnode)
-		countPodsonNodes = 0
-		for podname, _ := range confmap {
-			countPodsonNodes += 1
-			if countPodsonNodes > maxPodESXNode {
-				fmt.Printf("Kicking pod %v\n", podname)
-				KickPod(podname)
+
+	// reshuffle config2pod
+	reshuffledConfig2pod := make(map[int]map[string]map[string][]string)
+	for i := range config2Pod {
+		reshuffledConfig2pod[i] = make(map[string]map[string][]string)
+		reshuffledConfig2pod[i][kickerConfs[i].Name] = make(map[string][]string)
+	}
+	for i, configname := range config2Pod {
+		for configname, confmap := range configname {
+			for podname, esxnode := range confmap {
+				reshuffledConfig2pod[i][configname][esxnode] = append(reshuffledConfig2pod[i][configname][esxnode], podname)
 			}
-			if countPodsonNodes > maxPodESXNode {
-				numberOfPodsToKick := countPodsonNodes - maxPodESXNode
-				fmt.Printf("I kicked %d pods according to Configuration: \"%v\"\n", numberOfPodsToKick, kickerConfs[i].Name)
+		}
+	}
+	// fmt.Println(reshuffledConfig2pod)
+	var countedkickedPods int
+	for i, configname := range reshuffledConfig2pod {
+		for configname, confmap := range configname {
+			maxPodESXNode, _ := strconv.Atoi(kickerConfs[i].MaxpodsESXnode)
+			for esxnode, pods := range confmap {
+				countedkickedPods = 0
+				for i, pod := range pods {
+					// fmt.Printf("%v %v\n", i, pod)
+					if i+1 > maxPodESXNode {
+						fmt.Printf("Kicking pod %v for esxnode %v\n", pod, esxnode)
+						KickPod(pod)
+						countedkickedPods += 1
+					}
+				}
+				fmt.Printf("I kicked %d pods from esxnode %v according to Configuration: \"%v\"\n", countedkickedPods, esxnode, configname)
 			}
 		}
 	}
