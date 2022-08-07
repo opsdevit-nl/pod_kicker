@@ -1,0 +1,20 @@
+[
+      {
+        "name": "kickconf for nginx cluster",
+        "minPodsRunning": "10",
+        "maxPodsPerESXNode": "1",
+        "matchLabels": {
+          "bert" : "ernie",
+          "custom" : "test1",
+          "ans": "joop"
+        }
+      },
+      {
+        "name": "kickconf for postgres cluster",
+        "minPodsRunning": "5",
+        "maxPodsPerESXNode": "4",
+        "matchLabels": {
+          "custom" : "test2"
+        }
+      }
+]
