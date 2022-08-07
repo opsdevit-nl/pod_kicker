@@ -84,6 +84,7 @@ func main() {
 
 	// reshuffle config2pod
 	reshuffledConfig2pod := make(map[int]map[string]map[string][]string)
+	totalPodsAtCluster := make(map[string]int)
 	for i := range config2Pod {
 		reshuffledConfig2pod[i] = make(map[string]map[string][]string)
 		reshuffledConfig2pod[i][kickerConfs[i].Name] = make(map[string][]string)
@@ -91,6 +92,7 @@ func main() {
 	for i, configname := range config2Pod {
 		for configname, confmap := range configname {
 			for podname, esxnode := range confmap {
+				totalPodsAtCluster[configname] += 1
 				reshuffledConfig2pod[i][configname][esxnode] = append(reshuffledConfig2pod[i][configname][esxnode], podname)
 			}
 		}
@@ -99,12 +101,15 @@ func main() {
 	var countedkickedPods int
 	for i, configname := range reshuffledConfig2pod {
 		for configname, confmap := range configname {
+			// fmt.Printf("Total pods at the clusterlevel %v\n\n", totalPodsAtCluster[configname])
 			maxPodESXNode, _ := strconv.Atoi(kickerConfs[i].MaxpodsESXnode)
+			minPodsRunning, _ := strconv.Atoi(kickerConfs[i].Minpods)
 			for esxnode, pods := range confmap {
 				countedkickedPods = 0
 				for i, pod := range pods {
 					// fmt.Printf("%v %v\n", i, pod)
-					if i+1 > maxPodESXNode {
+					// fmt.Printf("Totalpods minus i+1 %d\n\n", (totalPodsAtCluster[configname] - (i + 1)))
+					if i+1 > maxPodESXNode && (totalPodsAtCluster[configname]-(i)) >= minPodsRunning {
 						fmt.Printf("Kicking pod %v for esxnode %v\n", pod, esxnode)
 						KickPod(pod)
 						countedkickedPods += 1
